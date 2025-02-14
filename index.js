@@ -41,6 +41,12 @@ client.on("disconnected", (reason) => {
   console.log("Disconnected", reason);
 });
 
+app.get("/", (req, res) => {
+  res.send(
+    "👋 *Welcome to our store!* \n\nType *MENU* to see the available products."
+  );
+});
+
 app.get("/qr", (req, res) => {
   if (!latestQRCode) {
     return res.json({ qr: "" });
