@@ -1,17 +1,13 @@
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
-const express = require("express");
-const cors = require("cors");
-
-const app = express();
-app.use(cors());
+const { Builder } = require("@netlify/functions");
 
 const client = new Client({
   authStrategy: new LocalAuth(),
 });
 
 let latestQRCode = "";
-const carts = {}; // Menyimpan pesanan per user
+const carts = {};
 
 const products = [
   { id: 1, name: "Kaos Polos", price: 50000 },
@@ -21,12 +17,11 @@ const products = [
 
 client.on("qr", (qr) => {
   latestQRCode = qr;
-  console.log("New QR Code generated!");
 });
 
 client.on("ready", () => {
   console.log("Client is ready!");
-  latestQRCode = ""; // Clear QR code when logged in
+  latestQRCode = "";
 });
 
 client.on("auth_failure", (message) => {
@@ -39,24 +34,6 @@ client.on("authenticated", (session) => {
 
 client.on("disconnected", (reason) => {
   console.log("Disconnected", reason);
-});
-
-app.get("/", (req, res) => {
-  res.send(
-    "👋 *Welcome to our store!* \n\nType *MENU* to see the available products."
-  );
-});
-
-app.get("/qr", (req, res) => {
-  if (!latestQRCode) {
-    return res.json({ qr: "" });
-  }
-  qrcode.toDataURL(latestQRCode, (err, url) => {
-    if (err) {
-      return res.status(500).json({ error: "QR code generation failed" });
-    }
-    res.json({ qr: url }); // Send QR as a base64 image
-  });
 });
 
 client.on("message", async (message) => {
@@ -233,8 +210,24 @@ client.on("message", async (message) => {
   }
 });
 
-client.initialize();
+const handler = async (event) => {
+  // Here you can define your API endpoints
+  if (event.path === "/qr") {
+    if (!latestQRCode) {
+      return { statusCode: 200, body: JSON.stringify({ qr: "" }) };
+    }
+    try {
+      const url = await qrcode.toDataURL(latestQRCode);
+      return { statusCode: 200, body: JSON.stringify({ qr: url }) };
+    } catch (error) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "QR code generation failed" }),
+      };
+    }
+  }
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
-});
+  return { statusCode: 404, body: "Not Found" };
+};
+
+module.exports.handler = Builder(handler);
